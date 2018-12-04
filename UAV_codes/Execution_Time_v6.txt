@@ -1,0 +1,133 @@
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 5, Lines 6, UAVs 3, and Time Units 80: 
+Required Surveillance Time 20, Resilient Visits 2, and Resilient Surveillance Time 45 
+Required Surveillance Score 60 and Resilient Surveillance Score 30 
+27-Sep-18 3:08:22 PM: Start of Execution
+27-Sep-18 3:08:35 PM: End of Execution (Execution Time: 12.9088655)
+Surveillance Score: 62.0689655172414%
+Resileint Surveillance Score: 31.0344827586207%
+Total Required time: 16.4388837
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 20, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 2:37:43 AM: Start of Execution
+07-Oct-18 2:38:00 AM: End of Execution (Execution Time: 16.3533362)
+Surveillance Score: 70.2380952380952%
+Resileint Surveillance Score: 51.1904761904762%
+Total Required time: 19.023187
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 2:43:10 AM: Start of Execution
+07-Oct-18 2:43:21 AM: End of Execution (Execution Time: 11.6466667)
+Surveillance Score: 70.2380952380952%
+Resileint Surveillance Score: 54.7619047619048%
+Total Required time: 12.9563041
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 30, Lines 41, UAVs 6, and Time Units 90: 
+Required Surveillance Time 25, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 2:53:58 AM: Start of Execution
+07-Oct-18 3:16:01 AM: End of Execution (Execution Time: 1322.2406945)
+Surveillance Score: 70.1030927835052%
+Resileint Surveillance Score: 50.5154639175258%
+Total Required time: 1337.4262895
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 30, Lines 41, UAVs 6, and Time Units 90: 
+Required Surveillance Time 20, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 3:18:07 AM: Start of Execution
+07-Oct-18 3:46:43 AM: End of Execution (Execution Time: 1715.6475596)
+Surveillance Score: 70.1030927835052%
+Resileint Surveillance Score: 51.5463917525773%
+Total Required time: 1745.6827771
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 5, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:14:21 AM: Start of Execution
+07-Oct-18 4:14:29 AM: End of Execution (Execution Time: 7.9412657)
+Surveillance Score: 72.6190476190476%
+Resileint Surveillance Score: 58.3333333333333%
+Total Required time: 9.4137101
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:17:19 AM: Start of Execution
+07-Oct-18 4:17:30 AM: End of Execution (Execution Time: 10.1617392)
+Surveillance Score: 70.2380952380952%
+Resileint Surveillance Score: 54.7619047619048%
+Total Required time: 11.2749954
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 3, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:17:47 AM: Start of Execution
+07-Oct-18 4:17:56 AM: End of Execution (Execution Time: 9.016979)
+Surveillance Score: 75%
+Resileint Surveillance Score: 51.1904761904762%
+Total Required time: 10.2006507
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 3, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:18:13 AM: Start of Execution
+07-Oct-18 4:18:22 AM: End of Execution (Execution Time: 8.4626111)
+Surveillance Score: 75%
+Resileint Surveillance Score: 51.1904761904762%
+Total Required time: 9.5768911
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 2, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:18:40 AM: Start of Execution
+07-Oct-18 4:18:50 AM: End of Execution (Execution Time: 9.9045673)
+Surveillance Score: 70.2380952380952%
+Resileint Surveillance Score: 54.7619047619048%
+Total Required time: 11.0035321
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 4, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:19:01 AM: Start of Execution
+07-Oct-18 4:19:08 AM: End of Execution (Execution Time: 7.2187875)
+Surveillance Score: 70.2380952380952%
+Resileint Surveillance Score: 57.1428571428571%
+Total Required time: 8.3110115
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 4, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 4, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:19:14 AM: Start of Execution
+07-Oct-18 4:19:21 AM: End of Execution (Execution Time: 6.932599)
+Surveillance Score: 70.2380952380952%
+Resileint Surveillance Score: 57.1428571428571%
+Total Required time: 8.1047525
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Total Required time: 0.048437
+
+Executing E:\TTU\Research\Z3\UAV\UAV\UAV\Program.cs ...........
+Buses 14, Lines 20, UAVs 5, and Time Units 40: 
+Required Surveillance Time 25, Resilient Visits 5, and Resilient Surveillance Time 40 
+Required Surveillance Score 70 and Resilient Surveillance Score 50 
+07-Oct-18 4:23:07 AM: Start of Execution
+07-Oct-18 4:28:25 AM: End of Execution (Execution Time: 317.7657803)
+Surveillance Score: 75%
+Resileint Surveillance Score: 64.2857142857143%
+Total Required time: 319.1466744
+
