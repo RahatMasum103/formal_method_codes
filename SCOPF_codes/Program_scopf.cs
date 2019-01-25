@@ -495,9 +495,6 @@ namespace SCOPF
                                 costCoef[k, 1] = Convert.ToDouble(lineElement[4]);
 
                                 stepChangeBPG[k] = (maxBPG[k] - minBPG[k]) / STEPS;
-
-
-
                                 break;
                             }
                         }
@@ -802,8 +799,10 @@ namespace SCOPF
             //////////////////////// SCOPF /////////////////////////
             #region SCOPF
 
-            #region ATTACKED/CHANGED LOAD           
+            #region ATTACKED/CHANGED LOAD  (COMMENTED, we dont need this) 
+            // Attacked LOAD calculation (Commented, we don't need that)
             {
+                /*
                 BoolExpr[] Exprs = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
@@ -820,11 +819,12 @@ namespace SCOPF
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                // opt.Assert(Expr);
+               */
             }
 
-            // MAX/MIN LIMIT of load
+            // MAX/MIN LIMIT of load (Commented, we don't need that)
             {
-
+                /*
                 BoolExpr[] Exprs = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
@@ -832,11 +832,13 @@ namespace SCOPF
                         z3.MkLe(BPD[j], z3.MkReal(Convert.ToString(maxBPD[j]))));                    
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
-               // opt.Assert(Expr);
+                opt.Assert(Expr);
+                */
             }
 
-            // SUM of all DELTA_LOAD must be ZERO
+            // SUM of all DELTA_LOAD must be ZERO (Commented, we don't need that)
             {
+                /*
                 RealExpr[] Exprs = new RealExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
@@ -845,11 +847,13 @@ namespace SCOPF
                 }
                 BoolExpr Expr = z3.MkAnd(z3.MkGe(z3.MkAdd(Exprs), z3.MkReal(Convert.ToString(-0.0000000001))),
                     z3.MkLe(z3.MkAdd(Exprs), z3.MkReal(Convert.ToString(0.0000000001))));
-                //opt.Assert(Expr);                
+                //opt.Assert(Expr);     
+                */
             }
 
-            // SUM OF ATTACKED_LOAD 
+            // SUM OF ATTACKED_LOAD (Commented, we don't need that)
             {
+                /*
                 RealExpr[] Exprs = new RealExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
@@ -857,6 +861,7 @@ namespace SCOPF
                 }
                 BoolExpr Expr = z3.MkEq(TotalAttackLoad, z3.MkAdd(Exprs));
                 //opt.Assert(Expr);
+                */
             }
             #endregion
 
@@ -897,18 +902,16 @@ namespace SCOPF
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
             }
-            #endregion         
+            #endregion              
 
-            
-
-            #region BUS CONSUMPTION (LOAD - GENRATION)   
+            #region BUS CONSUMPTION (GENRATION - LOAD)   
             {
                 BoolExpr[] Exprs = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
                     //Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPD[j], BPG[j])); 
                     //Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(Attack_Load[j], BPG[j]));
-                    Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPG[j], BPD[j])); // L_a calculation
+                    Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPG[j], BPD[j])); 
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
@@ -917,7 +920,6 @@ namespace SCOPF
 
             #region BUS CONSUMPTION (SUM of POWER FLOW)
             {
-
                 BoolExpr[] Exprs2 = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
@@ -942,10 +944,8 @@ namespace SCOPF
                         Exprs2[j - 1] = z3.MkEq(BP[j], z3.MkAdd(Exprs));
                     }
                 }
-
                 BoolExpr Expr = z3.MkAnd(Exprs2);
                 opt.Assert(Expr);
-
             }
             #endregion
 
@@ -983,13 +983,13 @@ namespace SCOPF
 
                 opt.Assert(z3.MkLe(TCostPG, ThCostPG));
                 //opt.MkMaximize(TCostPG);
-                opt.MkMinimize(TCostPG);
+                opt.MkMinimize(TCostPG); // optimization formula
                 opt.Assert(z3.MkEq(Cost, TCostPG));
             }
             #endregion
 
-            #region GENERATION CONSTRAINTS
-            // Number of step changes to be considered for the power generation
+            #region GENERATION CONSTRAINTS (COMMENTED, we dont need this)
+            // Number of step changes to be considered for the power generation (Commented, we don't need this)
             {
                 ////BoolExpr[] Exprs = new BoolExpr[2 * nBuses];
                 //BoolExpr[] Exprs = new BoolExpr[nBuses];
@@ -1137,16 +1137,10 @@ namespace SCOPF
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
-
             }
-
             #endregion
 
-
-            #endregion
-
-
-            
+            #endregion            
         }
         #endregion
 
@@ -1208,7 +1202,7 @@ namespace SCOPF
 
                 Console.WriteLine();                
 
-                Console.WriteLine("LINE FLOW AFTER CONTINGENCY (attacked scenario)");                
+                Console.WriteLine("LINE FLOW AFTER CONTINGENCY");                
                 for (int i = 1; i <= nLines; i++)
                 {
                     Console.WriteLine("Line {0} out: ", i);
