@@ -1,0 +1,36 @@
+# Number of Buses, Number of Lines, and The Reference Bus
+5 7 1
+
+# Lines
+# Line No, From Bus, To Bus, Admittance, Line Capacity
+1	1	2	16.67	1.224	
+2	1	3	4.17	1.224	
+3	2	3	4.00	0.33849	
+4	2	4	5.56	0.48182	
+5	2	5	8.33	0.70648	
+6	3	4	33.33	0.5235	
+7	4	5	4.17	0.612	
+
+
+# Bus Number, Generate?, Load?
+1	1	0
+2	1	1
+3	0	1
+4	0	1
+5	0	1
+
+# Bus No, Max Gen, Min Gen, Cost Coeff 1, Cost Coeff 2
+1	1.20	0.00	25	120
+2	1.00	0.00	15	220
+
+
+# Bus No, Load, Max Load, Min Load
+# With this max load and min load we do not need to control the change amount separately
+
+2	0.18	0.20	0.10
+3	0.40	0.45	0.10
+4	0.35	0.40	0.10
+5	0.50	0.60	0.10
+
+# Cost Constraint [Assertion is Commented: Ashiq, 02/21/2019]
+500
