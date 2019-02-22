@@ -1,4 +1,4 @@
-﻿using Microsoft.Z3;
+using Microsoft.Z3;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,12 +9,12 @@ namespace SCOPF
 {
     class CaOpf
     {
-        Context z3;       
+        Context z3;
         Optimize opt;
 
         static TextWriter tw;
 
-      
+
         #region constant
         const int NBUSES = 14;
         const int NLINES = 20;
@@ -24,7 +24,7 @@ namespace SCOPF
         //const int LINE_K = 4;
         //const double MIN_CH = -0.5;
         //const double MAX_CH = 0.5;
-        const double TOTAL_OVERLOAD_CONTINGENCY = 6;
+       // const int TOTAL_OVERLOAD_CONTINGENCY = 6;
 
         #endregion
 
@@ -49,8 +49,8 @@ namespace SCOPF
         double[] stepChangeBPG;
 
         //double minLdCh;
-        double minRealLineOverloadAmount;
-        double minContgnLineOverLoadAmount;
+        double minLineOverloadAmount;
+        //double minContgnLineOverLoadAmount;
         #endregion
 
         #region z3 variables
@@ -62,7 +62,7 @@ namespace SCOPF
         RealExpr[] Delta_Load;
         RealExpr[] FLP, BLP, BP, Theta;
         RealExpr[] REAL_BP;
-        
+
         RealExpr TBPD, TBPG, ThCostPG, Cost, TotalAttackLoad, TotalDeltaLoad;
         IntExpr[] BoundPre;
         //IntExpr a, b;
@@ -79,8 +79,18 @@ namespace SCOPF
         IntExpr[] OverLineCount;
 
         BoolExpr[,] IsOverFlowContgn;
-        IntExpr[] OverLineCountContgn;
+        IntExpr[,] EachLineContgnCount;
+        IntExpr[] OneSetContgnCount;
+
+        IntExpr TotalOverLdLineReal;
+        IntExpr TotalOvrLdCaseContgn;
         //RealExpr[] OverFlow;
+        RealExpr Percent_Overload;
+        RealExpr[] Percent_Overload_Contg;
+
+        BoolExpr[] IsOneSetOverload;
+        IntExpr[] ContgnCaseCount;
+
         #endregion
 
 
@@ -124,31 +134,43 @@ namespace SCOPF
             SF_Flow = new RealExpr[nLines + 1];
             Back_SF_Flow = new RealExpr[nLines + 1];
             IsOverFlow = new BoolExpr[nLines + 1];
-            OverLineCount = new IntExpr[nLines+1];
+            OverLineCount = new IntExpr[nLines + 1];
 
-            IsOverFlowContgn = new BoolExpr[nLines + 1, nLines + 1];
-            OverLineCountContgn = new IntExpr[nLines + 1];
+
+
+            Percent_Overload_Contg = new RealExpr[nLines + 1];
+
+            OneSetContgnCount = new IntExpr[nLines + 1];
+            ContgnCaseCount = new IntExpr[nLines + 1];
+            IsOneSetOverload = new BoolExpr[nLines + 1];
             for (i = 0; i <= nLines; i++)
             {
                 FLP[i] = (RealExpr)z3.MkConst("FLPower_" + i, z3.RealSort);
-                CA_FLP[i]= (RealExpr)z3.MkConst("CA_FLPower_" + i, z3.RealSort);
+                CA_FLP[i] = (RealExpr)z3.MkConst("CA_FLPower_" + i, z3.RealSort);
                 SF_Flow[i] = (RealExpr)z3.MkConst("SF_Flow_" + i, z3.RealSort);
                 Back_SF_Flow[i] = (RealExpr)z3.MkConst("Back_SF_Flow_" + i, z3.RealSort);
                 IsOverFlow[i] = (BoolExpr)z3.MkConst("IsOverFlow_" + i, z3.BoolSort);
-                OverLineCount[i] = (IntExpr)z3.MkConst("OverFlow_" + i, z3.IntSort);               
-                OverLineCountContgn[i] = (IntExpr)z3.MkConst("OverFlowContingency_" + i, z3.IntSort);
+                OverLineCount[i] = (IntExpr)z3.MkConst("OverFlow_" + i, z3.IntSort);
+
+                OneSetContgnCount[i] = (IntExpr)z3.MkConst("OneLineOutContgnCount_" + i, z3.IntSort);
+                ContgnCaseCount[i] = (IntExpr)z3.MkConst("ContgnCaseCount_" + i, z3.IntSort);
+
+                Percent_Overload_Contg[i] = (RealExpr)z3.MkConst("PercetageOvrlodContgn_", z3.RealSort);
+                IsOneSetOverload[i] = (BoolExpr)z3.MkConst("IsOneSetOverload_" + i, z3.BoolSort);
             }
 
             Lines_Contingency_Flow = new RealExpr[nLines + 1, nLines + 1];
             Back_Lines_Contingency_Flow = new RealExpr[nLines + 1, nLines + 1];
             SF_Lines_Contingency_Flow = new RealExpr[nLines + 1, nLines + 1];
             SF_Back_Lines_Contingency_Flow = new RealExpr[nLines + 1, nLines + 1];
-            for (i=0; i<=nLines; i++)
+            EachLineContgnCount = new IntExpr[nLines + 1, nLines + 1];
+            IsOverFlowContgn = new BoolExpr[nLines + 1, nLines + 1];
+            for (i = 0; i <= nLines; i++)
             {
-                for(int j=0; j<= nLines; j++)
+                for (int j = 0; j <= nLines; j++)
                 {
-                    str = String.Format("PowerFlow_{0}_{1}", i,j);                  
-                    Lines_Contingency_Flow[i,j] = (RealExpr)z3.MkConst(str, z3.RealSort);
+                    str = String.Format("PowerFlow_{0}_{1}", i, j);
+                    Lines_Contingency_Flow[i, j] = (RealExpr)z3.MkConst(str, z3.RealSort);
                     str = String.Format("Back_PowerFlow_{0}_{1}", i, j);
                     Back_Lines_Contingency_Flow[i, j] = (RealExpr)z3.MkConst(str, z3.RealSort);
                     str = String.Format("SF_PowerFlow_{0}_{1}", i, j);
@@ -157,6 +179,8 @@ namespace SCOPF
                     SF_Back_Lines_Contingency_Flow[i, j] = (RealExpr)z3.MkConst(str, z3.RealSort);
                     str = String.Format("IsOverFlowContingency_{0}_{1}", i, j);
                     IsOverFlowContgn[i, j] = (BoolExpr)z3.MkConst(str, z3.BoolSort);
+                    str = String.Format("EachLineContingency_{0}_{1}", i, j);
+                    EachLineContgnCount[i, j] = (IntExpr)z3.MkConst(str, z3.IntSort);
                 }
             }
 
@@ -186,9 +210,14 @@ namespace SCOPF
 
 
             TBPD = (RealExpr)z3.MkConst("TotalBPD", z3.RealSort);
-            TBPG = (RealExpr)z3.MkConst("TotalBPG", z3.RealSort);
+            TBPG = (RealExpr)z3.MkConst("TotalBPD", z3.RealSort);
             TotalAttackLoad = (RealExpr)z3.MkConst("TotalAttackLoad", z3.RealSort);
             TotalDeltaLoad = (RealExpr)z3.MkConst("TotalDeltaLoad", z3.RealSort);
+            TotalOverLdLineReal = (IntExpr)z3.MkConst("TotalOvrLdLineReal", z3.IntSort);
+            TotalOvrLdCaseContgn = (IntExpr)z3.MkConst("TotalOverLoadContingency", z3.IntSort);
+
+            Percent_Overload = (RealExpr)z3.MkConst("PercetageOverload", z3.RealSort);
+
             //TCostPG = (RealExpr)z3.MkConst("TotalCostPG", z3.RealSort);
             ThCostPG = (RealExpr)z3.MkConst("THCostGen", z3.RealSort);
             Cost = (RealExpr)z3.MkConst("Final SCOPF Cost", z3.RealSort);
@@ -197,6 +226,8 @@ namespace SCOPF
             {
                 BoundPre[i] = (IntExpr)z3.MkConst("BoundPre_" + i, z3.IntSort);
             }
+
+
             #endregion
         }
 
@@ -272,8 +303,7 @@ namespace SCOPF
 
             try
             {
-                System.IO.StreamReader file = new System.IO.StreamReader(String.Format("input_scopf_only_{0}_{1}.txt", NBUSES, NLINES));
-                //System.IO.StreamReader file = new System.IO.StreamReader(String.Format("input_2_scopf_5_7.txt"));
+                System.IO.StreamReader file = new System.IO.StreamReader(String.Format("input_scopf_{0}_{1}.txt", NBUSES, NLINES));
 
                 System.IO.StreamReader lodf_file = new System.IO.StreamReader(String.Format("input_LODF_{0}_{1}.txt", NBUSES, NLINES));
 
@@ -308,7 +338,7 @@ namespace SCOPF
                     refBus = Convert.ToInt32(lineElement[2]);
                     //nOverloads = Convert.ToInt32(lineElement[3]);
                     Console.WriteLine("buses: {0} | lines: {1} ", nBuses, nLines);
-                    tw.WriteLine("buses: {0} | lines: {1} ", nBuses, nLines);
+
                     nMeasurements = 2 * nLines + nBuses;
                     Console.WriteLine("measurements: {0}", nMeasurements);
 
@@ -322,7 +352,7 @@ namespace SCOPF
 
                     mBD = new bool[nBuses + 1];
                     mBG = new bool[nBuses + 1];
-                    
+
 
                     powerLine = new int[nLines + 1, 2];  // The first two entries are for the end buses.
                     lineAdmittance = new double[nLines + 1];
@@ -343,14 +373,14 @@ namespace SCOPF
                     minBPD = new double[nBuses + 1];
                     maxBPD = new double[nBuses + 1];
                     minBPG = new double[nBuses + 1];
-                    maxBPG = new double[nBuses + 1];                    
+                    maxBPG = new double[nBuses + 1];
 
                     costCoef = new double[nBuses + 1, 2];
                     stepChangeBPG = new double[nBuses + 1];
 
                     LODF = new double[nLines, nLines];
                     SHIFT_FACTOR = new double[nLines, nBuses]; // actual size (bus-1) due to reference bus
-                    
+
                 }
                 #endregion
 
@@ -371,7 +401,7 @@ namespace SCOPF
                         //Console.WriteLine(line);
                         if ((line.Length == 0) || line.StartsWith("#"))
                             continue;
-                        
+
                         lineElement = line.Split(delims);
                         //Console.WriteLine(lineElement.Length);
                         if (lineElement.Length != 5)
@@ -405,8 +435,8 @@ namespace SCOPF
                         i++;
                     }
                 }
-                #endregion                
-                
+                #endregion
+
                 #region Generation and load bus
                 {
                     nGBuses = 0;
@@ -532,7 +562,7 @@ namespace SCOPF
                                 demand[k] = Convert.ToDouble(lineElement[1]);
                                 maxBPD[k] = Convert.ToDouble(lineElement[2]);
                                 minBPD[k] = Convert.ToDouble(lineElement[3]);
-                               // changed_demand[k] = Convert.ToDouble(lineElement[4]); // Why is the last element
+                                // changed_demand[k] = Convert.ToDouble(lineElement[4]); // Why is the last element
                                 break;
                             }
                         }
@@ -561,14 +591,14 @@ namespace SCOPF
                     }
 
                     maxGenCost = Convert.ToDouble(lineElement[0]);
-                    Console.WriteLine("max generation cost: {0}" , maxGenCost);
+                    Console.WriteLine("max generation cost: {0}", maxGenCost);
                     tw.WriteLine("max generation cost: {0}", maxGenCost, "%");
-                    o.Assert(z3.MkEq(ThCostPG, z3.MkReal(Convert.ToString(maxGenCost))));                    
+                    o.Assert(z3.MkEq(ThCostPG, z3.MkReal(Convert.ToString(maxGenCost))));
 
                     break;
                 }
                 #endregion
-                /*
+
                 #region LINE OVERLOAD AMOUNT
                 while (true)
                 {
@@ -589,14 +619,82 @@ namespace SCOPF
                         Environment.Exit(0);
                     }
 
-                    minLineOverload = Convert.ToDouble(lineElement[0]);
-                    Console.WriteLine("max overloading: {0}", minLineOverload);
-                    tw.WriteLine("max overloading: {0}", minLineOverload);                    
+                    minLineOverloadAmount = Convert.ToDouble(lineElement[0]);
+                    //minContgnLineOverLoadAmount = Convert.ToDouble(lineElement[1]);
+                    Console.WriteLine("Minimum overloading amount: {0}%", minLineOverloadAmount);
+                    tw.WriteLine("Minimum overloading amount: {0}%", minLineOverloadAmount);
 
                     break;
                 }
                 #endregion
-                */
+
+                #region % of overload Lines
+
+                while (true)
+                {
+                    if ((line = file.ReadLine()) == null)
+                    {
+                        Console.WriteLine("Exit due to Insufficient Input");
+                        Environment.Exit(0);
+                    }
+
+                    line = line.Trim();
+                    if ((line.Length == 0) || line.StartsWith("#"))
+                        continue;
+
+                    lineElement = line.Split(delims);
+                    if (lineElement.Length != 1)
+                    {
+                        Console.WriteLine("Exit due to Wrong Number of Input");
+                        Environment.Exit(0);
+                    }
+
+                    int numOfRealOverloadLine = Convert.ToInt32(lineElement[0]);
+
+                    nOverloads = (int)Math.Ceiling((numOfRealOverloadLine * nLines) / 100.0);
+
+                    Console.WriteLine("Minimum Overloaded Lines: {0}%", numOfRealOverloadLine);
+                    tw.WriteLine("Minimum Overloaded Lines: {0}%", numOfRealOverloadLine);
+                    break;
+                }
+
+                #endregion
+
+                #region % of Contingency, % of Overload
+
+                while (true)
+                {
+                    if ((line = file.ReadLine()) == null)
+                    {
+                        Console.WriteLine("Exit due to Insufficient Input");
+                        Environment.Exit(0);
+                    }
+
+                    line = line.Trim();
+                    if ((line.Length == 0) || line.StartsWith("#"))
+                        continue;
+
+                    lineElement = line.Split(delims);
+                    if (lineElement.Length != 2)
+                    {
+                        Console.WriteLine("Exit due to Wrong Number of Input");
+                        Environment.Exit(0);
+                    }
+
+                    nPercContgnCase = Convert.ToInt32(lineElement[0]);
+                    nPercContgnOverloadLine = Convert.ToInt32(lineElement[1]);
+
+                    numOfCasesOverLoaded = (int)Math.Ceiling((nPercContgnCase * nLines) / 100.0);
+                    numOfLinesOverloaded = (int)Math.Ceiling((nPercContgnOverloadLine * nLines) / 100.0);
+
+                    Console.WriteLine("% of Contingency: {0} | % of Overload: {1}", nPercContgnCase, nPercContgnOverloadLine);
+                    tw.WriteLine("% of Contingency: {0} | % of Overload: {1}", nPercContgnCase, nPercContgnOverloadLine);
+                    break;
+                }
+
+
+                #endregion
+
                 /*
                 #region Old LINE OVERLOAD AMOUNT (We do not need them, Commented now)
                 
@@ -632,7 +730,8 @@ namespace SCOPF
                 #endregion
                 */
                 file.Close();
-                
+
+
                 #region input LODF matrix
 
                 for (int l = 0; l < nLines; l++)
@@ -656,7 +755,7 @@ namespace SCOPF
                             Environment.Exit(0);
                         }
 
-                        for(int k=0;k<lineElement.Length; k++)
+                        for (int k = 0; k < lineElement.Length; k++)
                         {
                             LODF[l, k] = Convert.ToDouble(lineElement[k]);
                         }
@@ -664,25 +763,12 @@ namespace SCOPF
                         break;
                     }
                 }
-                              
+
 
                 #endregion
 
                 lodf_file.Close();
 
-                
-                Console.WriteLine("\nLODF Input done");
-                /*
-                for (int l = 0; l < nLines; l++)
-                {
-                    for (int k = 0; k < nLines; k++)
-                    {
-                        Console.Write(LODF[l, k] + " ");
-                    }
-                    Console.WriteLine();
-                }
-                Console.WriteLine();
-                */
 
                 #region input SF matrix
 
@@ -709,7 +795,7 @@ namespace SCOPF
 
                         for (int k = 0; k < lineElement.Length; k++)
                         {
-                            SHIFT_FACTOR[l, k+1] = Convert.ToDouble(lineElement[k]);
+                            SHIFT_FACTOR[l, k + 1] = Convert.ToDouble(lineElement[k]);
                         }
 
                         break;
@@ -719,23 +805,36 @@ namespace SCOPF
                 #endregion
 
                 sf_file.Close();
-                Console.WriteLine("\nSHIFT FACTOR Input done");
-                /*
-                for (int l = 0; l < nLines; l++)
-                {
-                    for (int k = 0; k < nBuses; k++)
-                    {
-                        Console.Write(SHIFT_FACTOR[l, k] + " ");
-                    }
-                    Console.WriteLine();
-                }
-                Console.WriteLine();
-                */
             }
             catch (Exception e)
             {
                 throw e;
-            }    
+            }
+
+
+
+            Console.WriteLine("\nLODF Input");
+            for (int l = 0; l < nLines; l++)
+            {
+                for (int k = 0; k < nLines; k++)
+                {
+                   // Console.Write(LODF[l, k] + " ");
+                }
+               // Console.WriteLine();
+            }
+            Console.WriteLine();
+
+
+            Console.WriteLine("\nSHIFT FACTOR Input");
+            for (int l = 0; l < nLines; l++)
+            {
+                for (int k = 0; k < nBuses; k++)
+                {
+                   // Console.Write(SHIFT_FACTOR[l, k] + " ");
+                }
+                //Console.WriteLine();
+            }
+            Console.WriteLine();
 
 
             //Console.WriteLine("\nChanged LOAD Input");
@@ -745,12 +844,12 @@ namespace SCOPF
             //}
             //Console.WriteLine();
 
-        
+
         }
 
         #endregion
 
-               
+
         #region Formalization
         void Formalize(Context z3, Optimize opt)
         {
@@ -802,67 +901,61 @@ namespace SCOPF
             //////////////////////// SCOPF /////////////////////////
             #region SCOPF
 
-            #region ATTACKED/CHANGED LOAD    [COMMENTED FOR THIS PROGRAM]       
-            {/*
+            #region ATTACKED/CHANGED LOAD           
+            {
                 BoolExpr[] Exprs = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
                     if (mBD[j])
                     {
-                        Exprs[j - 1] = z3.MkEq(Attack_Load[j], BPD[j]);
+                        Exprs[j - 1] = z3.MkEq(Attack_Load[j], z3.MkAdd(BPD[j], Delta_Load[j]));
                         //Exprs[j - 1] = z3.MkEq(Attack_Load[j], z3.MkAdd(BPD[j], z3.MkReal(Convert.ToString(0.5))));
-                    }                        
+                    }
                     else
                     {
                         Exprs[j - 1] = z3.MkEq(Attack_Load[j], Zero);
                     }
-                        
+
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
-               // opt.Assert(Expr);
-               */
+                opt.Assert(Expr);
             }
 
-            // MAX/MIN LIMIT of load
+            // MAX/MIN LIMIT of attack_load
             {
-                /*
+
                 BoolExpr[] Exprs = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
-                    Exprs[j - 1] = z3.MkAnd(z3.MkGe(BPD[j], z3.MkReal(Convert.ToString(minBPD[j]))),
-                        z3.MkLe(BPD[j], z3.MkReal(Convert.ToString(maxBPD[j]))));                    
+                    Exprs[j - 1] = z3.MkAnd(z3.MkGe(Attack_Load[j], z3.MkReal(Convert.ToString(minBPD[j]))),
+                        z3.MkLe(Attack_Load[j], z3.MkReal(Convert.ToString(maxBPD[j]))));
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
-               // opt.Assert(Expr);
-               */
+                opt.Assert(Expr);
             }
 
             // SUM of all DELTA_LOAD must be ZERO
             {
-                /*
                 RealExpr[] Exprs = new RealExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
-                   // Exprs[j - 1] = (RealExpr) z3.MkSub(Attack_Load[j],BPD[j]);
+                    // Exprs[j - 1] = (RealExpr) z3.MkSub(Attack_Load[j],BPD[j]);
                     Exprs[j - 1] = Delta_Load[j];
                 }
                 BoolExpr Expr = z3.MkAnd(z3.MkGe(z3.MkAdd(Exprs), z3.MkReal(Convert.ToString(-0.0000000001))),
                     z3.MkLe(z3.MkAdd(Exprs), z3.MkReal(Convert.ToString(0.0000000001))));
-                //opt.Assert(Expr);  
-                */
+                opt.Assert(Expr);
             }
 
             // SUM OF ATTACKED_LOAD 
             {
-                /*
                 RealExpr[] Exprs = new RealExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
-                    Exprs[j - 1] = BPD[j];
+                    Exprs[j - 1] = Attack_Load[j];
                 }
                 BoolExpr Expr = z3.MkEq(TotalAttackLoad, z3.MkAdd(Exprs));
-                //opt.Assert(Expr);
-                */
+                opt.Assert(Expr);
             }
             #endregion
 
@@ -883,7 +976,7 @@ namespace SCOPF
 
                 //new attack summation of load
 
-                BoolExpr Expr = z3.MkAnd(z3.MkGe(TBPG, TBPD), z3.MkLe(TBPG, z3.MkMul(TBPD, z3.MkReal(Convert.ToString((100.0 + THRESHOLD_DIFF) / 100.0)))));
+                BoolExpr Expr = z3.MkAnd(z3.MkGe(TBPG, TotalAttackLoad), z3.MkLe(TBPG, z3.MkMul(TotalAttackLoad, z3.MkReal(Convert.ToString((100.0 + THRESHOLD_DIFF) / 100.0)))));
                 opt.Assert(Expr);
             }
             #endregion
@@ -907,53 +1000,19 @@ namespace SCOPF
 
 
 
-            #region BUS CONSUMPTION (GENERATION -LOAD)   
+            #region BUS CONSUMPTION (GENRATION - LOAD)   
             {
                 BoolExpr[] Exprs = new BoolExpr[nBuses];
                 for (int j = 1; j <= nBuses; j++)
                 {
                     //Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPD[j], BPG[j])); 
                     //Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(Attack_Load[j], BPG[j]));
-                    Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPG[j], BPD[j])); // L_a calculation
+                    Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPG[j], Attack_Load[j])); // L_a calculation
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
             }
-            #endregion
-
-            #region BUS CONSUMPTION (SUM of POWER FLOW)
-            {
-
-                BoolExpr[] Exprs2 = new BoolExpr[nBuses];
-                for (int j = 1; j <= nBuses; j++)
-                {
-                    // If a bus is connected with NO bus, then the theta will be zero and 
-                    // the power consumption at this bus will depend on its load only
-                    if (connected[j, 0] == 0)
-                    {
-                        Exprs2[j - 1] = z3.MkEq(Theta[j], Zero);
-                    }
-                    else
-                    {
-                        ArithExpr[] Exprs = new ArithExpr[connected[j, 0]];
-                        for (int i = 1; i <= connected[j, 0]; i++)
-                        {
-                            int k = mConnect[j, connected[j, i]];
-
-                            if (j == powerLine[k, 0])
-                                Exprs[i - 1] = FLP[k];
-                            else
-                                Exprs[i - 1] = BLP[k];
-                        }
-                        Exprs2[j - 1] = z3.MkEq(BP[j], z3.MkAdd(Exprs));
-                    }
-                }
-
-                BoolExpr Expr = z3.MkAnd(Exprs2);
-                opt.Assert(Expr);
-
-            }
-            #endregion
+            #endregion            
 
             #region COST of GENERATION
             {
@@ -964,7 +1023,8 @@ namespace SCOPF
                 for (int j = 1; j <= nBuses; j++)
                 {
                     if (mBG[j])
-                        Exprs[k++] = z3.MkAdd(z3.MkReal(Convert.ToString(costCoef[j, 0])),z3.MkMul(z3.MkReal(Convert.ToString(costCoef[j, 1])), BPG[j]));
+                        Exprs[k++] = z3.MkAdd(z3.MkReal(Convert.ToString(costCoef[j, 0])),
+                            z3.MkMul(z3.MkReal(Convert.ToString(costCoef[j, 1])), BPG[j]));
                 }
 
                 TCostPG = z3.MkAdd(Exprs);
@@ -988,12 +1048,14 @@ namespace SCOPF
 
                 opt.Assert(z3.MkLe(TCostPG, ThCostPG));
                 //opt.MkMaximize(TCostPG);
-                opt.MkMinimize(TCostPG);
+
+                //  opt.MkMinimize(TCostPG); // optimization cost (may not needed for ATTACK scenario )
+
                 opt.Assert(z3.MkEq(Cost, TCostPG));
             }
             #endregion
 
-            #region GENERATION CONSTRAINTS (Commented)
+            #region GENERATION CONSTRAINTS (COMMENTED, no need )
             // Number of step changes to be considered for the power generation
             {
                 ////BoolExpr[] Exprs = new BoolExpr[2 * nBuses];
@@ -1058,7 +1120,9 @@ namespace SCOPF
                 BoolExpr[] Exprs = new BoolExpr[nLines];
                 for (int i = 1; i <= nLines; i++)
                 {
-                    Exprs[i - 1] = z3.MkEq(BLP[i],z3.MkMul(z3.MkSub(Theta[powerLine[i, 1]], Theta[powerLine[i, 0]]),z3.MkReal(Convert.ToString(lineAdmittance[i]))));
+                    Exprs[i - 1] = z3.MkEq(BLP[i],
+                                     z3.MkMul(z3.MkSub(Theta[powerLine[i, 1]], Theta[powerLine[i, 0]]),
+                                         z3.MkReal(Convert.ToString(lineAdmittance[i]))));
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
@@ -1074,7 +1138,7 @@ namespace SCOPF
             #region FLP and BLP CAPACITY LIMIT (LINE FLOW) 
             {
                 BoolExpr[] Exprs = new BoolExpr[2 * nLines];
-                
+
                 for (int i = 1; i <= nLines; i++)
                 {
                     double minPL = (-1) * maxPL[i];
@@ -1086,6 +1150,40 @@ namespace SCOPF
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
+            }
+            #endregion
+
+            #region BUS CONSUMPTION (SUM of POWER FLOW)
+            {
+
+                BoolExpr[] Exprs2 = new BoolExpr[nBuses];
+                for (int j = 1; j <= nBuses; j++)
+                {
+                    // If a bus is connected with NO bus, then the theta will be zero and 
+                    // the power consumption at this bus will depend on its load only
+                    if (connected[j, 0] == 0)
+                    {
+                        Exprs2[j - 1] = z3.MkEq(Theta[j], Zero);
+                    }
+                    else
+                    {
+                        ArithExpr[] Exprs = new ArithExpr[connected[j, 0]];
+                        for (int i = 1; i <= connected[j, 0]; i++)
+                        {
+                            int k = mConnect[j, connected[j, i]];
+
+                            if (j == powerLine[k, 0])
+                                Exprs[i - 1] = FLP[k];
+                            else
+                                Exprs[i - 1] = BLP[k];
+                        }
+                        Exprs2[j - 1] = z3.MkEq(BP[j], z3.MkAdd(Exprs));
+                    }
+                }
+
+                BoolExpr Expr = z3.MkAnd(Exprs2);
+                opt.Assert(Expr);
+
             }
             #endregion
 
@@ -1112,13 +1210,13 @@ namespace SCOPF
                     for (int l = 1; l <= nLines; l++)
                     {
                         BoolExpr Expr = z3.MkEq(Back_Lines_Contingency_Flow[k, l], z3.MkSub(Zero, Lines_Contingency_Flow[k, l]));
-                        opt.Assert(Expr);                        
+                        opt.Assert(Expr);
                     }
                 }
             }
             #endregion
 
-            #region CONTINGENCY FLOW MAX LIMIT (forward and backward)
+            #region CONTINGENCY FLOW MAX LIMIT (forward and backward) (should be in LIMIT as it is in SCOPF)
             // If after contingency each line is in LIMIT or NOT??
             {
                 //BoolExpr[] Exprs = new BoolExpr[2 * nLines];
@@ -1130,16 +1228,17 @@ namespace SCOPF
                     {
                         double minPL = (-1) * maxPL[j];
 
-                        OneLineOut[2 * j - 2] = z3.MkAnd(z3.MkGe(Lines_Contingency_Flow[i,j], z3.MkReal(Convert.ToString(minPL))),
+                        OneLineOut[2 * j - 2] = z3.MkAnd(z3.MkGe(Lines_Contingency_Flow[i, j], z3.MkReal(Convert.ToString(minPL))),
                        z3.MkLe(Lines_Contingency_Flow[i, j], z3.MkReal(Convert.ToString(maxPL[j]))));
                         // It will automatically cover the constraint for backward power flow
-                        OneLineOut[2 * j - 1] = z3.MkAnd(z3.MkGe(Back_Lines_Contingency_Flow[i,j], z3.MkReal(Convert.ToString(minPL))),
-                            z3.MkLe(Back_Lines_Contingency_Flow[i,j], z3.MkReal(Convert.ToString(maxPL[j]))));
+                        OneLineOut[2 * j - 1] = z3.MkAnd(z3.MkGe(Back_Lines_Contingency_Flow[i, j], z3.MkReal(Convert.ToString(minPL))),
+                            z3.MkLe(Back_Lines_Contingency_Flow[i, j], z3.MkReal(Convert.ToString(maxPL[j]))));
                     }
-                    Exprs[i - 1] = z3.MkAnd(OneLineOut);                   
+                    Exprs[i - 1] = z3.MkAnd(OneLineOut);
                 }
                 BoolExpr Expr = z3.MkAnd(Exprs);
                 opt.Assert(Expr);
+
             }
 
             #endregion
@@ -1147,8 +1246,263 @@ namespace SCOPF
 
             #endregion
 
+            //////////////////////// ORIGINAL Scenario /////////////////////////
+            #region Original Power FLOW 
 
+            #region BUS CONSUMPTION (GENRATION - LOAD)   
+            {
+                BoolExpr[] Exprs = new BoolExpr[nBuses];
+                for (int j = 1; j <= nBuses; j++)
+                {
+                    //Exprs[j - 1] = z3.MkEq(BP[j], z3.MkSub(BPD[j], BPG[j]));                    
+
+                    Exprs[j - 1] = z3.MkEq(REAL_BP[j], z3.MkSub(BPG[j], BPD[j]));
+                }
+                BoolExpr Expr = z3.MkAnd(Exprs);
+                opt.Assert(Expr);
+            }
+            #endregion
+
+            #region Original FLOW using REAL LOAD and SHIFT FACTOR 
+            {
+                BoolExpr[] LineSum = new BoolExpr[nLines];
+                for (int l = 1; l <= nLines; l++)
+                {
+                    ArithExpr[] BusSum = new ArithExpr[nBuses];
+                    for (int b = 1; b <= nBuses; b++)
+                    {
+                        BusSum[b - 1] = z3.MkMul(REAL_BP[b], z3.MkReal(Convert.ToString(SHIFT_FACTOR[l - 1, b - 1])));
+                    }
+                    LineSum[l - 1] = z3.MkEq(SF_Flow[l], z3.MkAdd(BusSum));
+                }
+                BoolExpr Expr = z3.MkAnd(LineSum);
+                opt.Assert(Expr);
+            }
+
+            // backward flow (commented for now)
+            {
+                /*
+                BoolExpr[] Back_LineSum = new BoolExpr[nLines];
+                for (int l = 1; l <= nLines; l++)
+                {
+                    Back_LineSum[l - 1] = z3.MkEq(Back_SF_Flow[l], z3.MkSub(Zero, SF_Flow[l]));
+                }
+                BoolExpr Expr = z3.MkAnd(Back_LineSum);
+                //opt.Assert(Expr);
+                */
+            }
+            #endregion
+
+            #region Get some FLOWS OVER the LINE CAPACITY [CASE - I] (COMMENTED in this file)
+            {
+                   /*                 
+                //double MIN_OVERLOADING = 1.1;
+               // BoolExpr[] Exprs = new BoolExpr[2 * nLines];
+
+                BoolExpr[] Exprs = new BoolExpr[nLines];
+
+                for (int l = 1; l <= nLines; l++)
+                {
+                    // using MkOr to get a solution for at least one line
+                    double MIN_OVERLOADING = 1 + (minLineOverloadAmount / 100.0);
+                    double minPL = (-1) * maxPL[l];
+
+                    Exprs[l - 1] = z3.MkOr(z3.MkLt(SF_Flow[l], z3.MkReal(Convert.ToString(minPL * MIN_OVERLOADING))),
+                        z3.MkGt(SF_Flow[l], z3.MkReal(Convert.ToString(maxPL[l] * MIN_OVERLOADING))));
+
+                   // Exprs[2 * l - 1] = z3.MkOr(z3.MkLt(Back_SF_Flow[l], z3.MkReal(Convert.ToString(-maxPL[l] * MIN_OVERLOADING))),
+                    //    z3.MkGt(Back_SF_Flow[l], z3.MkReal(Convert.ToString(maxPL[l] * MIN_OVERLOADING))));
+
+                    opt.Assert(z3.MkImplies(IsOverFlow[l], Exprs[l - 1]));
+                    opt.Assert(z3.MkImplies(Exprs[l - 1], IsOverFlow[l]));
+                    // opt.Assert(z3.MkImplies(IsOverFlow[l - 1], z3.MkOr(Exprs[2 * l - 2], Exprs[2 * l - 1])));
+                    //opt.Assert(z3.MkImplies(z3.MkOr(Exprs[2 * l - 2], Exprs[2 * l - 1]), IsOverFlow[l - 1]));
+                }              
+
+                // Minimum % NUMBER of Overflowed Lines  
+                opt.Assert(z3.MkEq(OverLineCount[0], z3.MkInt(0)));                
+                
+                for (int l = 1; l <= nLines; l++)
+                {
+                    opt.Assert(z3.MkImplies(IsOverFlow[l], z3.MkEq(OverLineCount[l], z3.MkInt(1))));
+                    opt.Assert(z3.MkImplies(z3.MkNot(IsOverFlow[l]), z3.MkEq(OverLineCount[l], z3.MkInt(0))));
+                }
+
+               // double LINE_OVERLOAD = 1.0/(double) nLines;
+                //double PERCENT_OVERLOAD = (double)nOverloads / 100.0;
+
+                //Console.WriteLine("..........line calculatation......" + PERCENT_OVERLOAD);
+
+                TotalOverLdLineReal = (IntExpr)z3.MkAdd(OverLineCount);
+                // RealExpr Percent_Overload = (RealExpr) z3.MkMul(z3.MkInt2Real(TotalOverLoad), z3.MkReal(Convert.ToString(LINE_OVERLOAD)));
+
+                opt.Assert(z3.MkGe(TotalOverLdLineReal, z3.MkInt(nOverloads)));
+
+               // opt.Assert(z3.MkEq(Percent_Overload, z3.MkMul(z3.MkInt2Real(TotalOverLdLineReal), z3.MkReal(Convert.ToString(LINE_OVERLOAD)))));
+
+               // BoolExpr SumOverFlowLine = z3.MkGe(Percent_Overload, z3.MkReal(Convert.ToString(PERCENT_OVERLOAD)));
+              //  opt.Assert(SumOverFlowLine);
+              
+                */
+            }
+
+            #endregion
+
+            #region FLOWS are in LIMIT of LINE CAPACITY [CASE - II] 
+            {
+                
+                BoolExpr[] Exprs = new BoolExpr[nLines];
+                for (int l = 1; l <= nLines; l++)
+                {
+                    double minPL = (-1) * maxPL[l];
+                    Exprs[l - 1] = z3.MkAnd(z3.MkGe(SF_Flow[l], z3.MkReal(Convert.ToString(minPL))), z3.MkLe(SF_Flow[l], z3.MkReal(Convert.ToString(maxPL[l]))));
+
+                    //opt.Assert(z3.MkImplies(IsOverFlow[l], Exprs[l - 1]));
+                    //opt.Assert(z3.MkImplies(Exprs[l - 1], z3.MkNot(IsOverFlow[l])));
+                }
+                BoolExpr Expr = z3.MkAnd(Exprs);
+                opt.Assert(Expr);
+                
+            }
+
+            #endregion
+
+            #endregion
+
+            //////////////////////// CONTINGENCY Scenario /////////////////////////
             
+            #region Original FLOW in CONTINGENCY (COMMENTED whole region for this File)
+
+            #region Original FLOW (n-1) Contingency 
+            
+            for (int k = 1; k <= nLines; k++)
+            {
+                for (int l = 1; l <= nLines; l++)
+                {
+                    if (l != k)
+                    {
+                        RealExpr Delta_FLP = (RealExpr)z3.MkMul(SF_Flow[k], z3.MkReal(Convert.ToString(LODF[l - 1, k - 1])));
+                        RealExpr Changed_FLP = (RealExpr)z3.MkSub(SF_Flow[l], Delta_FLP);
+                        opt.Assert(z3.MkEq(SF_Lines_Contingency_Flow[k, l], Changed_FLP));
+                    }
+                    else
+                    {
+                        opt.Assert(z3.MkEq(SF_Lines_Contingency_Flow[k, l], Zero));
+                    }
+                }
+            }
+            
+            // backward flow (commented for now)
+            /*
+            for (int k = 1; k <= nLines; k++)
+            {
+                for (int l = 1; l <= nLines; l++)
+                {                    
+                    opt.Assert(z3.MkEq(SF_Back_Lines_Contingency_Flow[k, l], z3.MkSub(Zero, SF_Lines_Contingency_Flow[k, l])));
+                }
+            }
+            */
+            #endregion
+
+            #region Original Flow after Contingency CAPACITY LIMIT (CASE-II, Part-overload in EACH case) 
+            // If after contingency each line is in LIMIT or NOT??
+            {
+                
+                // BoolExpr[] Exprs = new BoolExpr[2 * nLines];
+               // BoolExpr[] Exprs = new BoolExpr[nLines];
+
+                for (int i = 1; i <= nLines; i++)
+                {
+                    BoolExpr[] OneLineOut = new BoolExpr[nLines];
+                    for (int j = 1; j <= nLines; j++)
+                    {
+                        double MIN_OVERLOADING = 1 + (minLineOverloadAmount / 100.0);
+
+                        //double MIN_OVERLOADING = 1.3;
+
+                        double minPL = (-1) * maxPL[j];
+
+                        if (i != j)
+                        {
+                            OneLineOut[j - 1] = z3.MkOr(z3.MkLt(SF_Lines_Contingency_Flow[i, j], z3.MkReal(Convert.ToString(minPL * MIN_OVERLOADING))),
+                            z3.MkGt(SF_Lines_Contingency_Flow[i, j], z3.MkReal(Convert.ToString(maxPL[j] * MIN_OVERLOADING))));
+                        }
+                        else
+                        {
+                            OneLineOut[j - 1] = z3.MkBool(false);
+                            //z3.MkNot(OneLineOut[j - 1]);
+                        }
+                        opt.Assert(z3.MkImplies(IsOverFlowContgn[i, j], OneLineOut[j - 1]));
+                        opt.Assert(z3.MkImplies(OneLineOut[j - 1], IsOverFlowContgn[i, j]));
+                        
+                    }
+                    // Exprs[i - 1] = z3.MkOr(OneLineOut);
+                }
+                // BoolExpr Expr = z3.MkOr(Exprs);
+                //opt.Assert(Expr);
+
+                opt.Assert(z3.MkEq(EachLineContgnCount[0, 0], z3.MkInt(0)));
+                for (int i = 1; i <= nLines; i++)
+                {
+                    opt.Assert(z3.MkEq(EachLineContgnCount[i, 0], z3.MkInt(0)));
+                    for (int j = 1; j <= nLines; j++)
+                    {
+                        opt.Assert(z3.MkImplies(IsOverFlowContgn[i, j], z3.MkEq(EachLineContgnCount[i, j], z3.MkInt(1))));
+                        opt.Assert(z3.MkImplies(z3.MkNot(IsOverFlowContgn[i, j]), z3.MkEq(EachLineContgnCount[i, j], z3.MkInt(0))));
+                    }
+                }
+
+                opt.Assert(z3.MkEq(OneSetContgnCount[0], z3.MkInt(0)));
+                for (int i = 1; i <= nLines; i++)
+                {
+                    IntExpr[] OneLineCountOverload = new IntExpr[nLines];
+                    for (int j = 1; j <= nLines; j++)
+                    {
+                        OneLineCountOverload[j - 1] = EachLineContgnCount[i, j];
+                    }
+                    OneSetContgnCount[i] = (IntExpr)z3.MkAdd(OneLineCountOverload);
+                }
+
+                //double LINE_OVERLOAD_CONTG = 1.0 / (double)nLines;
+                //double PERCENT_OVERLOAD_CONTG = (double)nPercContgnOverloadLine / 100.0;
+
+                // Console.WriteLine("..........line calculatation......" + LINE_OVERLOAD_CONTG);
+
+                opt.Assert(z3.MkEq(IsOneSetOverload[0], z3.MkBool(false)));
+                for (int i = 1; i <= nLines; i++)
+                {
+
+                    //opt.Assert(z3.MkGe(OneSetContgnCount[i],z3.MkInt(numOfLinesOverloaded)));
+                    IsOneSetOverload[i] = z3.MkGe(OneSetContgnCount[i], z3.MkInt(numOfLinesOverloaded));
+
+                    // opt.Assert(z3.MkEq(Percent_Overload_Contg[i], z3.MkMul(z3.MkInt2Real(OneSetContgnCount[i]), z3.MkReal(Convert.ToString(LINE_OVERLOAD_CONTG)))));
+                    //opt.Assert(z3.MkEq(Percent_Overload_Contg[i], z3.MkMul(z3.MkInt2Real(OneSetContgnCount[i]), z3.MkReal(Convert.ToString(LINE_OVERLOAD_CONTG)))));
+                    //BoolExpr SumOverFlowLineContgn = z3.MkGe(Percent_Overload_Contg[i], z3.MkReal(Convert.ToString(PERCENT_OVERLOAD_CONTG)));
+                    //opt.Assert(SumOverFlowLineContgn);
+                }
+                opt.Assert(z3.MkOr(IsOneSetOverload));
+
+                z3.MkEq(ContgnCaseCount[0], z3.MkInt(0));
+                for (int l = 1; l <= nLines; l++)
+                {
+                    opt.Assert(z3.MkImplies(IsOneSetOverload[l], z3.MkEq(ContgnCaseCount[l], z3.MkInt(1))));
+                    opt.Assert(z3.MkImplies(z3.MkNot(IsOneSetOverload[l]), z3.MkEq(ContgnCaseCount[l], z3.MkInt(0))));
+                }
+
+                IntExpr TotalCaseSum = (IntExpr)z3.MkAdd(ContgnCaseCount);
+
+                opt.Assert(z3.MkGe(TotalCaseSum, z3.MkInt(numOfCasesOverLoaded)));
+
+                //opt.Assert(z3.MkEq(TotalOvrLdCaseContgn, TotalCaseSum));
+
+                //opt.Assert(z3.MkGe(TotalOvrLdCaseContgn, z3.MkInt(numOfCasesOverLoaded)));
+              
+            }
+            #endregion
+
+
+            #endregion
+
         }
         #endregion
 
@@ -1161,45 +1515,49 @@ namespace SCOPF
             //Status st = slv.Check();
             Status ot = opt.Check();
 
-            while (opt.Check() == Status.SATISFIABLE)           
+            while (opt.Check() == Status.SATISFIABLE)
             {
                 isSat = true;
-               // model = slv.Model;
+                // model = slv.Model;
                 model = opt.Model;
 
                 numOfSol++;
 
-                TextWriter lineFlow = new StreamWriter("lineFlowContingency.txt", true);
                 Console.WriteLine("REAL LOAD");
-                
+
                 for (int i = 1; i <= nBuses; i++)
                 {
                     //tw2.Write("{0} ", model.Eval(FLP[i]).ToString());
                     Console.WriteLine("Bus {0} ", i + " real load: " + Math.Round(ToDouble(model.Eval(BPD[i]).ToString()), 5));
-                     tw.WriteLine("Bus {0} ", i + " real load: " + Math.Round(ToDouble(model.Eval(BPD[i]).ToString()), 5));
-                }
-                
-                Console.WriteLine();
-                /*
-                Console.WriteLine("DELTA LOAD");
-                for (int i = 1; i <= nBuses; i++)
-                {
-                    //tw2.Write("{0} ", model.Eval(FLP[i]).ToString());
-                   // Console.WriteLine("Bus load {0} ", i + " changed: " + model.Eval(Delta_Load[i]).ToString());
-                    Console.WriteLine("Bus load {0} ", i + " changed: " + Math.Round(ToDouble(model.Eval(Delta_Load[i]).ToString()), 5));
-                    tw.WriteLine("Bus load {0} ", i + " changed: " + Math.Round(ToDouble(model.Eval(Delta_Load[i]).ToString()), 5));
+                    tw.WriteLine("Bus {0} ", i + " real load: " + Math.Round(ToDouble(model.Eval(BPD[i]).ToString()), 5));
                 }
 
                 Console.WriteLine();
-                */
-                Console.WriteLine("CHANGED LOAD");                
+                tw.WriteLine();
+
+                Console.WriteLine("DELTA LOAD");
+                for (int i = 1; i <= nBuses; i++)
+                {
+                   // model.Eval(Delta_Load[i]);
+                    //tw2.Write("{0} ", model.Eval(FLP[i]).ToString());
+                    // Console.WriteLine("Bus load {0} ", i + " changed: " + model.Eval(Delta_Load[i]).ToString());
+                    //tw.WriteLine("Bus {0} ", i + " delta amount for load: " + model.Eval(Delta_Load[i]).ToString());
+                    //Console.WriteLine("Bus {0} ", i + " delta amount for load: " + Math.Round(ToDouble(model.Eval(Delta_Load[i]).ToString()), 6));
+                   // tw.WriteLine("Bus {0} ", i + " delta amount for load: " + Math.Round(ToDouble(model.Eval(Delta_Load[i]).ToString()), 6));
+                }
+
+                Console.WriteLine();
+                tw.WriteLine();
+
+                Console.WriteLine("CHANGED LOAD");
                 for (int i = 1; i <= nBuses; i++)
                 {
                     //tw2.Write("{0} ", model.Eval(FLP[i]).ToString());
-                    //Console.WriteLine("Bus {0} ", i + " changed load: " + Math.Round(ToDouble(model.Eval(Attack_Load[i]).ToString()), 5));
-                    // tw.WriteLine("Bus {0} ", i + " changed load: " + Math.Round(ToDouble(model.Eval(Attack_Load[i]).ToString()), 5));
-                }                
+                    Console.WriteLine("Bus {0} ", i + " changed load: " + Math.Round(ToDouble(model.Eval(Attack_Load[i]).ToString()), 5));
+                    tw.WriteLine("Bus {0} ", i + " changed load: " + Math.Round(ToDouble(model.Eval(Attack_Load[i]).ToString()), 5));
+                }
                 Console.WriteLine();
+                tw.WriteLine();
 
                 Console.WriteLine("GENERATION");
                 for (int i = 1; i <= nBuses; i++)
@@ -1209,70 +1567,52 @@ namespace SCOPF
                     tw.WriteLine("Bus {0} ", i + " generation: " + Math.Round(ToDouble(model.Eval(BPG[i]).ToString()), 5));
                 }
 
-                Console.WriteLine();                
-                
-                
-                Console.WriteLine("LINE FLOW AFTER CONTINGENCY (attacked scenario)");                
+                Console.WriteLine();
+                tw.WriteLine();
+
+                Console.WriteLine("LINE FLOW AFTER CONTINGENCY (attacked scenario)");
                 for (int i = 1; i <= nLines; i++)
                 {
                     Console.WriteLine("Line {0} out: ", i);
                     tw.WriteLine("Line {0} out: ", i);
                     for (int j = 1; j <= nLines; j++)
-                    {                     
-                        Console.WriteLine("flow in line {0}", j + ": " + Math.Round(ToDouble(model.Eval(Lines_Contingency_Flow[i, j]).ToString()),5));
+                    {
+                        Console.WriteLine("flow in line {0}", j + ": " + Math.Round(ToDouble(model.Eval(Lines_Contingency_Flow[i, j]).ToString()), 5));
                         tw.WriteLine("flow in line {0}", j + ": " + Math.Round(ToDouble(model.Eval(Lines_Contingency_Flow[i, j]).ToString()), 5));
-
-                        lineFlow.WriteLine(j + " " + Math.Round(ToDouble(model.Eval(Lines_Contingency_Flow[i, j]).ToString()), 5));
                     }
                     Console.WriteLine();
-                    lineFlow.WriteLine();
-                }                
+                }
                 Console.WriteLine();
+                tw.WriteLine();
 
-                lineFlow.WriteLine();
-                lineFlow.Close();
-                
-               // Console.WriteLine("TOTAL REAL LOAD: " + Math.Round(ToDouble(model.Eval(TBPD).ToString()), 5));
-              //  tw.WriteLine("TOTAL REAL LOAD" + Math.Round(ToDouble(model.Eval(TBPD).ToString()), 5));
-
-                Console.WriteLine("TOTAL REAL LOAD: " + (model.Eval(TBPD).ToString()));
-                tw.WriteLine("TOTAL REAL LOAD" + (model.Eval(TBPD).ToString()));
+                Console.WriteLine("TOTAL REAL LOAD: " + Math.Round(ToDouble(model.Eval(TBPD).ToString()), 5));
+                tw.WriteLine("TOTAL REAL LOAD" + Math.Round(ToDouble(model.Eval(TBPD).ToString()), 5));
                 Console.WriteLine();
-                /*
-                                Console.WriteLine("TOTAL CHANGED LOAD: " + Math.Round(ToDouble(model.Eval(TotalAttackLoad).ToString()), 5));
-                                tw.WriteLine("TOTAL CHANGED LOAD" + Math.Round(ToDouble(model.Eval(TotalAttackLoad).ToString()), 5));
-                                Console.WriteLine();
-                                */
+                tw.WriteLine();
 
-                //Console.WriteLine("TOTAL GENERATION: " + Math.Round(ToDouble(model.Eval(TBPG).ToString()), 5));
-                //  tw.WriteLine("TOTAL GENERATION" + Math.Round(ToDouble(model.Eval(TBPG).ToString()), 5));
+                Console.WriteLine("TOTAL CHANGED LOAD: " + Math.Round(ToDouble(model.Eval(TotalAttackLoad).ToString()), 5));
+                tw.WriteLine("TOTAL CHANGED LOAD" + Math.Round(ToDouble(model.Eval(TotalAttackLoad).ToString()), 5));
+                Console.WriteLine();
+                tw.WriteLine();
 
-                Console.WriteLine("TOTAL GENERATION: " + model.Eval(TBPG).ToString());
-                tw.WriteLine("TOTAL GENERATION" + model.Eval(TBPG).ToString());
+                Console.WriteLine("TOTAL GENERATION: " + Math.Round(ToDouble(model.Eval(TBPG).ToString()), 5));
+                tw.WriteLine("TOTAL GENERATION" + Math.Round(ToDouble(model.Eval(TBPG).ToString()), 5));
 
                 Console.WriteLine();
-                
-                
-                Console.WriteLine("FLP (using Theta * Admittance)");                
+                tw.WriteLine();
+
+
+                Console.WriteLine("FLP (using Theta * Admittance)");
                 for (int i = 1; i <= nLines; i++)
                 {
                     //tw2.Write("{0} ", model.Eval(FLP[i]).ToString());
                     Console.WriteLine("flow in line {0} ", i + ": " + Math.Round(ToDouble(model.Eval(FLP[i]).ToString()), 5));
                     tw.WriteLine("flow in line {0} ", i + ": " + Math.Round(ToDouble(model.Eval(FLP[i]).ToString()), 5));
-
-                    
                 }
-                
-                Console.WriteLine();
-                tw.WriteLine("..................Line Flows for MATLAB2017b................");
-                for (int i = 1; i <= nLines; i++)
-                {
-                    
-                    tw.WriteLine(Math.Round(ToDouble(model.Eval(FLP[i]).ToString()), 5));
-                }
-                Console.WriteLine();
 
-                /*
+                Console.WriteLine();
+                tw.WriteLine();
+
                 Console.WriteLine("Original FLOW (using SHIFT FACTOR)");
 
                 for (int i = 1; i <= nLines; i++)
@@ -1284,10 +1624,11 @@ namespace SCOPF
                 }
 
                 Console.WriteLine();
-                */
+                tw.WriteLine();
+
                 /*
                 Console.WriteLine("Backward FLOW using SHIFT FACTOR");
-
+                
                 for (int i = 1; i <= nLines; i++)
                 {
                     //tw2.Write("{0} ", model.Eval(FLP[i]).ToString());
@@ -1298,7 +1639,6 @@ namespace SCOPF
 
                 Console.WriteLine();
                 */
-                /*
                 Console.WriteLine("Overflow STATUS");
                 for (int i = 1; i <= nLines; i++)
                 {
@@ -1309,7 +1649,9 @@ namespace SCOPF
                 }
 
                 Console.WriteLine();
+                tw.WriteLine();
 
+                /*
                 Console.WriteLine("Overflow STATUS (Debug)");
                 for (int i = 1; i <= nLines; i++)
                 {
@@ -1320,6 +1662,7 @@ namespace SCOPF
                 }
 
                 Console.WriteLine();
+                */
 
                 Console.WriteLine("Original FLOW after Contingency (using SHIFT FACTOR)");
 
@@ -1332,14 +1675,26 @@ namespace SCOPF
                         Console.WriteLine("flow in line {0}", j + ": " + Math.Round(ToDouble(model.Eval(SF_Lines_Contingency_Flow[i, j]).ToString()), 5));
                         tw.WriteLine("flow in line {0}", j + ": " + Math.Round(ToDouble(model.Eval(SF_Lines_Contingency_Flow[i, j]).ToString()), 5));
 
-                        Console.WriteLine("line {0} ", j + " overflow: " + model.Eval(IsOverFlowContgn[i, j]).ToString());
+                       // Console.WriteLine("line {0} ", j + " overflow: " + model.Eval(IsOverFlowContgn[i, j]).ToString());
 
                     }
+                    Console.WriteLine("Contingency OVERLOADED Lines in this Set: {0}", (model.Eval(OneSetContgnCount[i]).ToString()));
+                    tw.WriteLine("Contingency OVERLOADED Lines in this Set: {0}", (model.Eval(OneSetContgnCount[i]).ToString()));
+
+                    Console.WriteLine("[DEBUG] This Line Set Overloaded: {0}", (model.Eval(IsOneSetOverload[i]).ToString()));
+                    
+                    // Console.WriteLine("Contingency Overload Percentage in this Set: {0}%", Math.Round(ToDouble(model.Eval(Percent_Overload_Contg[i]).ToString()), 4) * 100);
+                    // tw.WriteLine("Contingency Percentage in this Set: {0}", Math.Round(ToDouble(model.Eval(Percent_Overload_Contg[i]).ToString()), 4) * 100);
+
                     Console.WriteLine();
+                    tw.WriteLine();
                 }
 
+
+                Console.WriteLine("[DEBUG] Total Cases OVERLOADED in Contingency: " + model.Eval(TotalOvrLdCaseContgn).ToString());
+                //tw.WriteLine("Total Cases OVERLOADED in Contingency:" + model.Eval(TotalOvrLdCaseContgn).ToString());
                 Console.WriteLine();
-                */
+
                 /*
                 Console.WriteLine("Contingency Overflow STATUS");
                 for (int i = 1; i <= nLines; i++)
@@ -1355,10 +1710,16 @@ namespace SCOPF
                     }
                 }
                 */
+                // Overload Lines % Calculation
+                /*
+                Console.WriteLine("Total OVERLOADED Lines found: {0}%" , (Math.Round(ToDouble(model.Eval(Percent_Overload).ToString()),4))*100);
+                tw.WriteLine("Total OVERLOADED Lines found: {0}%" , (Math.Round(ToDouble(model.Eval(Percent_Overload).ToString()),4))*100);
+                */
+
                 //SCOPF COST Calculation
 
-                Console.WriteLine("SCOPF Cost found: " + model.Eval(Cost).ToString());
-                tw.WriteLine("SCOPF Cost found: " + model.Eval(Cost).ToString());
+                Console.WriteLine("SCOPF Cost found: " + Math.Round(ToDouble(model.Eval(Cost).ToString())));
+                tw.WriteLine("SCOPF Cost found: " + Math.Round(ToDouble(model.Eval(Cost).ToString())));
                 //test case
                 //Console.WriteLine("A values " + model.Eval(a).ToString());
                 //tw.WriteLine("A values " + model.Eval(a).ToString());
@@ -1369,21 +1730,21 @@ namespace SCOPF
 
                 if (numOfSol == 1)
                 {
-                    Console.WriteLine("total solution: {0}" , numOfSol);
+                    Console.WriteLine("total solution: {0}", numOfSol);
                     break;
                 }
             }
 
 
-            if(!isSat)
-           // if (ot == Status.UNSATISFIABLE || ot == Status.UNKNOWN)
+            if (!isSat)
+            // if (ot == Status.UNSATISFIABLE || ot == Status.UNKNOWN)
             //if (st == Status.UNSATISFIABLE || st == Status.UNKNOWN)
             {
-                
+
                 Console.WriteLine("We have no solution");
                 tw.WriteLine("We have no solution");
             }
-            
+
         }
         #endregion
 
@@ -1405,14 +1766,12 @@ namespace SCOPF
                 };
 
                 z3 = new Context(cfg);
-               // slv = z3.MkSolver();
+                // slv = z3.MkSolver();
                 opt = z3.MkOptimize();
-                ReadInput(z3,opt);          
-                
-                Formalize(z3,opt);
-                Enumerate(z3,opt);
+                ReadInput(z3, opt);
 
-                Console.WriteLine("Functions Done");
+                Formalize(z3, opt);
+                Enumerate(z3, opt);
             }
             catch (Z3Exception ex)
             {
@@ -1431,13 +1790,13 @@ namespace SCOPF
 
         static void Main(string[] args)
         {
-            Console.WriteLine("SCOPF ONLY Program");
+            Console.WriteLine("SCOPF Program");
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
 
             tw = new StreamWriter("Output.txt", true);
             tw.WriteLine("===============================================================");
-            tw.WriteLine("SCOPF ONLY Program (no overload)");
+            tw.WriteLine("SCOPF Program");
             CaOpf oIn = new CaOpf();
             oIn.Model();
             //pIn.z3 = new Context(cfg);
@@ -1450,7 +1809,7 @@ namespace SCOPF
             tw.WriteLine("===============================================================");
 
             tw.Close();
-           
+
         }
     }
 }
